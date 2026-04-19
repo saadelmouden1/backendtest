@@ -1,0 +1,305 @@
+// ============================================================
+// Prisma Schema — generated from ERD
+// Database: PostgreSQL
+// ============================================================
+
+generator client {
+  provider = "prisma-client-js"
+  previewFeatures = ["driverAdapters"]
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ─────────────────────────────────────────────
+// ENUMS
+// ─────────────────────────────────────────────
+
+enum UserType {
+  CLIENT
+  PROVIDER
+  ADMIN
+}
+
+enum VerificationStatus {
+  PENDING
+  VERIFIED
+  REJECTED
+}
+
+enum TrustedRelationStatus {
+  PENDING
+  ACCEPTED
+  BLOCKED
+}
+
+enum BroadcastStatus {
+  OPEN
+  IN_PROGRESS
+  CLOSED
+  CANCELLED
+}
+
+enum BroadcastResponseStatus {
+  PENDING
+  ACCEPTED
+  REJECTED
+  WITHDRAWN
+}
+
+enum ProjectStatus {
+  DRAFT
+  ACTIVE
+  COMPLETED
+  CANCELLED
+}
+
+enum ProjectProviderStatus {
+  INVITED
+  ACTIVE
+  REMOVED
+  COMPLETED
+}
+
+enum ProjectProviderRole {
+  LEAD
+  COLLABORATOR
+  OBSERVER
+}
+
+// ─────────────────────────────────────────────
+// USER
+// ─────────────────────────────────────────────
+
+model User {
+  id          String   @id @default(uuid()) @db.Uuid
+  firstName   String   @map("first_name") @db.VarChar(100)
+  lastName    String   @map("last_name") @db.VarChar(100)
+  email       String   @unique @db.VarChar(255)
+  password    String?  @db.VarChar(255) // nullable: OAuth users may not have a password
+  googleId    String?  @unique @map("google_id") @db.VarChar(255)
+  phoneNumber String?  @map("phone_number") @db.VarChar(30)
+  type        UserType @default(CLIENT)
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  provider            Provider?
+  broadcastsCreated   Broadcast[]        @relation("BroadcastCreator")
+  reviews             Review[]           @relation("ReviewAuthor")
+  trustedRelations    TrustedRelation[]  @relation("TrustedUser")
+  conversationsAsClient Conversation[]  @relation("ConversationClient")
+  messagesSent        Message[]          @relation("MessageSender")
+  projectsAsClient    Project[]          @relation("ProjectClient")
+  refreshTokens RefreshToken[]
+
+  @@map("users")
+}
+
+
+model RefreshToken {
+  id        String   @id @default(uuid()) @db.Uuid
+  token     String   @unique
+  userId    String   @db.Uuid
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+}
+
+// ─────────────────────────────────────────────
+// PROVIDER
+// ─────────────────────────────────────────────
+
+model Provider {
+  id                  String             @id @default(uuid()) @db.Uuid
+  userId              String             @unique @map("user_id") @db.Uuid
+  license             String?            @db.VarChar(100)
+  idVerificationImg   String?            @map("id_verification_img") @db.VarChar(500)
+  profession          String?            @db.VarChar(150)
+  isVerified          VerificationStatus @default(PENDING) @map("is_verified")
+  createdAt           DateTime           @default(now()) @map("created_at")
+  updatedAt           DateTime           @updatedAt @map("updated_at")
+
+  // Relations
+  user                User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  reviews             Review[]           @relation("ReviewTarget")
+  trustedRelations    TrustedRelation[]  @relation("TrustedProvider")
+  broadcastConfirmed  Broadcast[]        @relation("BroadcastConfirmedProvider")
+  broadcastResponses  BroadcastResponse[]
+  conversationsAsProvider Conversation[] @relation("ConversationProvider")
+  projectAssignments  ProjectProvider[]
+
+  @@map("providers")
+}
+
+// ─────────────────────────────────────────────
+// REVIEW
+// ─────────────────────────────────────────────
+
+model Review {
+  id         String   @id @default(uuid()) @db.Uuid
+  userId     String   @map("user_id") @db.Uuid
+  providerId String   @map("provider_id") @db.Uuid
+  rating     Int      // 1–5; enforce in app layer or add a CHECK constraint via migration
+  comment    String?  @db.Text
+  createdAt  DateTime @default(now()) @map("created_at")
+  updatedAt  DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  user     User     @relation("ReviewAuthor", fields: [userId], references: [id], onDelete: Cascade)
+  provider Provider @relation("ReviewTarget", fields: [providerId], references: [id], onDelete: Cascade)
+
+  // A user can only review a provider once
+  @@unique([userId, providerId])
+  @@map("reviews")
+}
+
+// ─────────────────────────────────────────────
+// TRUSTED RELATION
+// ─────────────────────────────────────────────
+
+model TrustedRelation {
+  id         String                @id @default(uuid()) @db.Uuid
+  userId     String                @map("user_id") @db.Uuid
+  providerId String                @map("provider_id") @db.Uuid
+  status     TrustedRelationStatus @default(PENDING)
+  createdAt  DateTime              @default(now()) @map("created_at")
+  updatedAt  DateTime              @updatedAt @map("updated_at")
+
+  // Relations
+  user     User     @relation("TrustedUser", fields: [userId], references: [id], onDelete: Cascade)
+  provider Provider @relation("TrustedProvider", fields: [providerId], references: [id], onDelete: Cascade)
+
+  // Prevent duplicate trust requests
+  @@unique([userId, providerId])
+  @@map("trusted_relations")
+}
+
+// ─────────────────────────────────────────────
+// BROADCAST
+// ─────────────────────────────────────────────
+
+model Broadcast {
+  id                  String          @id @default(uuid()) @db.Uuid
+  userId              String          @map("user_id") @db.Uuid
+  title               String          @db.VarChar(255)
+  description         String?         @db.Text
+  location            String?         @db.VarChar(255)
+  status              BroadcastStatus @default(OPEN)
+  providerConfirmedId String?         @map("provider_confirmed_id") @db.Uuid
+  createdAt           DateTime        @default(now()) @map("created_at")
+  updatedAt           DateTime        @updatedAt @map("updated_at")
+
+  // Relations
+  user              User                @relation("BroadcastCreator", fields: [userId], references: [id], onDelete: Cascade)
+  providerConfirmed Provider?           @relation("BroadcastConfirmedProvider", fields: [providerConfirmedId], references: [id], onDelete: SetNull)
+  responses         BroadcastResponse[]
+
+  @@map("broadcasts")
+}
+
+// ─────────────────────────────────────────────
+// BROADCAST RESPONSE
+// ─────────────────────────────────────────────
+
+model BroadcastResponse {
+  id          String                  @id @default(uuid()) @db.Uuid
+  broadcastId String                  @map("broadcast_id") @db.Uuid
+  providerId  String                  @map("provider_id") @db.Uuid
+  message     String?                 @db.Text
+  price       Decimal?                @db.Decimal(10, 2)
+  status      BroadcastResponseStatus @default(PENDING)
+  createdAt   DateTime                @default(now()) @map("created_at")
+  updatedAt   DateTime                @updatedAt @map("updated_at")
+
+  // Relations
+  broadcast Broadcast @relation(fields: [broadcastId], references: [id], onDelete: Cascade)
+  provider  Provider  @relation(fields: [providerId], references: [id], onDelete: Cascade)
+
+  // A provider can only respond once per broadcast
+  @@unique([broadcastId, providerId])
+  @@map("broadcast_responses")
+}
+
+// ─────────────────────────────────────────────
+// CONVERSATION
+// ─────────────────────────────────────────────
+
+model Conversation {
+  id         String   @id @default(uuid()) @db.Uuid
+  clientId   String   @map("client_id") @db.Uuid
+  providerId String   @map("provider_id") @db.Uuid
+  createdAt  DateTime @default(now()) @map("created_at")
+  updatedAt  DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  client   User      @relation("ConversationClient", fields: [clientId], references: [id], onDelete: Cascade)
+  provider Provider  @relation("ConversationProvider", fields: [providerId], references: [id], onDelete: Cascade)
+  messages Message[]
+
+  // One conversation per client–provider pair
+  @@unique([clientId, providerId])
+  @@map("conversations")
+}
+
+// ─────────────────────────────────────────────
+// MESSAGE
+// ─────────────────────────────────────────────
+
+model Message {
+  id             String   @id @default(uuid()) @db.Uuid
+  conversationId String   @map("conversation_id") @db.Uuid
+  senderId       String   @map("sender_id") @db.Uuid
+  content        String   @db.Text
+  createdAt      DateTime @default(now()) @map("created_at")
+
+  // Relations
+  conversation Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  sender       User         @relation("MessageSender", fields: [senderId], references: [id], onDelete: Cascade)
+
+  @@index([conversationId, createdAt])
+  @@map("messages")
+}
+
+// ─────────────────────────────────────────────
+// PROJECT
+// ─────────────────────────────────────────────
+
+model Project {
+  id          String        @id @default(uuid()) @db.Uuid
+  clientId    String        @map("client_id") @db.Uuid
+  title       String        @db.VarChar(255)
+  description String?       @db.Text
+  status      ProjectStatus @default(DRAFT)
+  createdAt   DateTime      @default(now()) @map("created_at")
+  updatedAt   DateTime      @updatedAt @map("updated_at")
+
+  // Relations
+  client    User              @relation("ProjectClient", fields: [clientId], references: [id], onDelete: Cascade)
+  providers ProjectProvider[]
+
+  @@map("projects")
+}
+
+// ─────────────────────────────────────────────
+// PROJECT PROVIDER  (junction table)
+// ─────────────────────────────────────────────
+
+model ProjectProvider {
+  id         String                @id @default(uuid()) @db.Uuid
+  projectId  String                @map("project_id") @db.Uuid
+  providerId String                @map("provider_id") @db.Uuid
+  status     ProjectProviderStatus @default(INVITED)
+  role       ProjectProviderRole   @default(COLLABORATOR)
+  createdAt  DateTime              @default(now()) @map("created_at")
+  updatedAt  DateTime              @updatedAt @map("updated_at")
+
+  // Relations
+  project  Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  provider Provider @relation(fields: [providerId], references: [id], onDelete: Cascade)
+
+  // A provider can only be added once per project
+  @@unique([projectId, providerId])
+  @@map("project_providers")
+}

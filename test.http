@@ -1,0 +1,41 @@
+### Register
+POST http://localhost:3000/api/auth/register
+Content-Type: application/json
+
+{
+  "firstName": "walid",
+  "lastName": "Doe",
+  "email": "walid@example.com",
+  "password": "password123"
+}
+
+### Login
+POST http://localhost:3000/api/auth/login
+Content-Type: application/json
+
+{
+  "email": "walid@example.com",
+  "password": "password123"
+}
+
+### Get Me
+GET http://localhost:3000/api/auth/me
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjViMDYyMzY4LWQ0M2UtNGQ4YS1hNjY2LWIyNjgyN2M2ODk2YyIsImVtYWlsIjoid2FsaWRAZXhhbXBsZS5jb20iLCJ0eXBlIjoiQ0xJRU5UIiwiaWF0IjoxNzc2NTUyNDg0LCJleHAiOjE3NzY1NTMzODR9.mhK-JmjTk_IawNkHf27PzRJOyO3uJoTGfm4np0NUOsM
+
+### Refresh
+POST http://localhost:3000/api/auth/refresh
+Content-Type: application/json
+
+{
+  "refreshToken": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjViMDYyMzY4LWQ0M2UtNGQ4YS1hNjY2LWIyNjgyN2M2ODk2YyIsImlhdCI6MTc3NjU1MjUxNCwiZXhwIjoxNzc5MTQ0NTE0fQ.X1Mx2TwJpHdMrs4p_TrPWViDo4OkJUab8PDuOcY2yck"
+}
+
+### Logout
+POST http://localhost:3000/api/auth/logout
+Content-Type: application/json
+
+{
+  "refreshToken": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjViMDYyMzY4LWQ0M2UtNGQ4YS1hNjY2LWIyNjgyN2M2ODk2YyIsImlhdCI6MTc3NjU1MjUxNCwiZXhwIjoxNzc5MTQ0NTE0fQ.X1Mx2TwJpHdMrs4p_TrPWViDo4OkJUab8PDuOcY2yck"
+
+
+}
