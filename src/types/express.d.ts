@@ -6,7 +6,9 @@ declare global {
       user?: {
         id: string
         email: string
-        type: UserType
+        type: UserType | string
+        firstName?: string
+        lastName?: string
       }
     }
   }

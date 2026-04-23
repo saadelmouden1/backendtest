@@ -125,6 +125,7 @@ export const refresh = async (token: string) => {
   if (!token) {
     throw { status: 401, message: 'No refresh token provided' }
   }
+  
 
   const stored = await prisma.refreshToken.findUnique({
     where: { token },
@@ -174,4 +175,30 @@ export const logout = async (token: string) => {
   })
 
   return { message: 'Logged out successfully' }
+}
+
+export const googleAuth = async (user: {
+  id: string
+  email: string
+  type: string
+  firstName: string
+  lastName: string
+}) => {
+  const accessToken = signAccessToken({
+    id: user.id,
+    email: user.email,
+    type: user.type
+  })
+
+  const refreshToken = signRefreshToken({ id: user.id })
+
+  await prisma.refreshToken.create({
+    data: {
+      token: refreshToken,
+      userId: user.id,
+      expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000)
+    }
+  })
+
+  return { accessToken, refreshToken, user }
 }

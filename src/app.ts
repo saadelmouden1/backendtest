@@ -3,6 +3,7 @@ import cors from 'cors'
 import helmet from 'helmet'
 import routes from './routes/index'
 import { errorMiddleware } from './middleware/error.middleware'
+import passport from './config/passport'
 
 const app = express()
 
@@ -12,6 +13,8 @@ app.use(cors())
 
 // parse request body as json
 app.use(express.json())
+
+app.use(passport.initialize())
 
 // health check
 app.get('/health', (req, res) => {
