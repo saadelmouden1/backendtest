@@ -11,11 +11,11 @@ const app = express()
 
 // security
 app.use(helmet())
+
 app.use(cors({
   origin: env.FRONTEND_URL,
-   credentials: true
-  }           
-))
+  credentials: true
+}))
 
 // parse request body as json
 app.use(express.json())

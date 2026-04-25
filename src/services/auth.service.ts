@@ -117,9 +117,10 @@ export const refresh = async (token: string) => {
     throw { status: 401, message: 'No refresh token provided' }
   }
 
-  
+  const hashedToken = hashToken(token)
+
   const stored = await prisma.refreshToken.findUnique({
-    where: { token: hashToken(token) },  
+    where: { token: hashedToken },
     include: { user: true }
   })
 
@@ -128,16 +129,30 @@ export const refresh = async (token: string) => {
   }
 
   if (stored.expiresAt < new Date()) {
-    await prisma.refreshToken.delete({ where: { token: hashToken(token) } })
+    await prisma.refreshToken.delete({ where: { token: hashedToken } })
     throw { status: 401, message: 'Refresh token expired' }
   }
 
   try {
     verifyRefreshToken(token)
   } catch {
-    await prisma.refreshToken.delete({ where: { token: hashToken(token) } })
+    await prisma.refreshToken.delete({ where: { token: hashedToken } })
     throw { status: 401, message: 'Invalid refresh token' }
   }
+
+  // delete old token
+  await prisma.refreshToken.delete({ where: { token: hashedToken } })
+
+  // generate new refresh token
+  const newRefreshToken = signRefreshToken({ id: stored.user.id })
+
+  await prisma.refreshToken.create({
+    data: {
+      token: hashToken(newRefreshToken),
+      userId: stored.user.id,
+      expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000)
+    }
+  })
 
   const accessToken = signAccessToken({
     id: stored.user.id,
@@ -145,25 +160,17 @@ export const refresh = async (token: string) => {
     type: stored.user.type
   })
 
-  return { accessToken }
+  return { accessToken, refreshToken: newRefreshToken }
 }
-
 
 export const logout = async (token: string) => {
   if (!token) {
-    throw { status: 400, message: 'No refresh token provided' }
+    // no token means already logged out — fine
+    return { message: 'Logged out successfully' }
   }
 
-  const stored = await prisma.refreshToken.findUnique({
-    where: { token: hashToken(token) }  // ← hash before lookup
-  })
-
-  if (!stored) {
-    throw { status: 400, message: 'Invalid refresh token' }
-  }
-
-  await prisma.refreshToken.delete({
-    where: { token: hashToken(token) }  // ← hash before delete
+  await prisma.refreshToken.deleteMany({
+    where: { token: hashToken(token) }
   })
 
   return { message: 'Logged out successfully' }

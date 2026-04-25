@@ -56,11 +56,12 @@ export const getMe = asyncHandler(async (req: Request, res: Response) => {
 })
 
 export const refresh = asyncHandler(async (req: Request, res: Response) => {
-  const token = req.cookies?.refreshToken
+  const token = req.cookies?.refreshToken || req.body?.refreshToken
 
   const result = await authService.refresh(token)
 
   res.cookie('accessToken', result.accessToken, accessTokenOptions)
+  res.cookie('refreshToken', result.refreshToken, refreshTokenOptions)
 
   res.status(200).json({
     success: true,
@@ -70,15 +71,21 @@ export const refresh = asyncHandler(async (req: Request, res: Response) => {
 })
 
 export const logout = asyncHandler(async (req: Request, res: Response) => {
-  const token = req.cookies?.refreshToken
+  const token = req.cookies?.refreshToken || req.body?.refreshToken
 
   await authService.logout(token)
 
-  res.clearCookie('accessToken')
-  res.clearCookie('refreshToken')
+  const clearOptions = {
+    httpOnly: true,
+    secure: env.NODE_ENV === 'production',
+    sameSite: 'lax' as const,
+  }
+
+  res.clearCookie('accessToken', clearOptions)
+  res.clearCookie('refreshToken', clearOptions)
 
   res.status(200).json({
-     success: true,
+    success: true,
     message: 'Logged out successfully',
     data: null
   })
@@ -97,6 +104,30 @@ export const googleCallback = asyncHandler(async (req: Request, res: Response) =
   res.cookie('accessToken', result.accessToken, accessTokenOptions)
   res.cookie('refreshToken', result.refreshToken, refreshTokenOptions)
 
-  // no tokens in URL anymore — they are in cookies
-  res.redirect(`${env.FRONTEND_URL}/auth/callback`)
+  // serve HTML page from localhost:3000
+  // cookies are committed on this domain
+  // then JS redirects to frontend
+  res.send(`
+    <!DOCTYPE html>
+    <html>
+      <head><title>Redirecting...</title></head>
+      <body>
+        <script>
+          window.location.href = '${env.FRONTEND_URL}/auth/callback';
+        </script>
+      </body>
+    </html>
+  `)
+})
+
+export const googleFinalize = asyncHandler(async (req: Request, res: Response) => {
+  const accessToken = req.cookies?.accessToken
+  const refreshToken = req.cookies?.refreshToken
+
+  if (!accessToken || !refreshToken) {
+    res.status(401).json({ success: false, message: 'No session found' })
+    return
+  }
+
+  res.status(200).json({ success: true, message: 'Session established' })
 })
