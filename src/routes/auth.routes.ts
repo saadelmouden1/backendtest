@@ -19,19 +19,21 @@ const loginSchema = z.object({
   password: z.string().min(1, 'Password is required'),
 })
 
-const refreshSchema = z.object({
-  refreshToken: z.string().min(1, 'Refresh token is required'),
-})
+// const refreshSchema = z.object({
+//   refreshToken: z.string().min(1, 'Refresh token is required'),
+// })
 
-const logoutSchema = z.object({
-  refreshToken: z.string().min(1, 'Refresh token is required'),
-})
+// const logoutSchema = z.object({
+//   refreshToken: z.string().min(1, 'Refresh token is required'),
+// })
 
 router.post('/register', validate(registerSchema), authController.register)
 router.post('/login', validate(loginSchema), authController.login)
 router.get('/me', authMiddleware, authController.getMe)
-router.post('/refresh', validate(refreshSchema), authController.refresh)
-router.post('/logout', validate(logoutSchema), authController.logout)
+router.post('/refresh', authController.refresh) 
+router.post('/logout', authController.logout) 
+// router.post('/refresh', validate(refreshSchema), authController.refresh)
+// router.post('/logout', validate(logoutSchema), authController.logout)
 
 router.get(
   '/google',

@@ -1,6 +1,12 @@
 import prisma from '../config/database'
 import { hashPassword, comparePassword } from '../utils/hash'
 import { signAccessToken, signRefreshToken, verifyRefreshToken } from '../utils/jwt'
+import crypto from 'crypto'
+
+
+const hashToken = (token: string): string => {
+  return crypto.createHash('sha256').update(token).digest('hex')
+}
 
 export const register = async (data: {
   firstName: string
@@ -35,26 +41,18 @@ export const register = async (data: {
 
   const refreshToken = signRefreshToken({ id: user.id })
 
+
   await prisma.refreshToken.create({
     data: {
-      token: refreshToken,
+      token: hashToken(refreshToken),  // ← hashed
       userId: user.id,
       expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000)
     }
   })
 
-  return {
-    user: {
-      id: user.id,
-      firstName: user.firstName,
-      lastName: user.lastName,
-      email: user.email,
-      type: user.type,
-    },
-    accessToken,
-    refreshToken
-  }
+  return { user: { id: user.id, firstName: user.firstName, lastName: user.lastName, email: user.email, type: user.type }, accessToken, refreshToken }
 }
+
 
 export const login = async (data: {
   email: string
@@ -82,26 +80,18 @@ export const login = async (data: {
 
   const refreshToken = signRefreshToken({ id: user.id })
 
+  
   await prisma.refreshToken.create({
     data: {
-      token: refreshToken,
+      token: hashToken(refreshToken),  // ← hashed
       userId: user.id,
       expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000)
     }
   })
 
-  return {
-    user: {
-      id: user.id,
-      firstName: user.firstName,
-      lastName: user.lastName,
-      email: user.email,
-      type: user.type,
-    },
-    accessToken,
-    refreshToken
-  }
+  return { user: { id: user.id, firstName: user.firstName, lastName: user.lastName, email: user.email, type: user.type }, accessToken, refreshToken }
 }
+
 
 export const getMe = async (id: string) => {
   const user = await prisma.user.findUnique({
@@ -121,14 +111,15 @@ export const getMe = async (id: string) => {
   }
 }
 
+
 export const refresh = async (token: string) => {
   if (!token) {
     throw { status: 401, message: 'No refresh token provided' }
   }
-  
 
+  
   const stored = await prisma.refreshToken.findUnique({
-    where: { token },
+    where: { token: hashToken(token) },  
     include: { user: true }
   })
 
@@ -137,14 +128,14 @@ export const refresh = async (token: string) => {
   }
 
   if (stored.expiresAt < new Date()) {
-    await prisma.refreshToken.delete({ where: { token } })
+    await prisma.refreshToken.delete({ where: { token: hashToken(token) } })
     throw { status: 401, message: 'Refresh token expired' }
   }
 
   try {
     verifyRefreshToken(token)
   } catch {
-    await prisma.refreshToken.delete({ where: { token } })
+    await prisma.refreshToken.delete({ where: { token: hashToken(token) } })
     throw { status: 401, message: 'Invalid refresh token' }
   }
 
@@ -157,13 +148,14 @@ export const refresh = async (token: string) => {
   return { accessToken }
 }
 
+
 export const logout = async (token: string) => {
   if (!token) {
     throw { status: 400, message: 'No refresh token provided' }
   }
 
   const stored = await prisma.refreshToken.findUnique({
-    where: { token }
+    where: { token: hashToken(token) }  // ← hash before lookup
   })
 
   if (!stored) {
@@ -171,11 +163,12 @@ export const logout = async (token: string) => {
   }
 
   await prisma.refreshToken.delete({
-    where: { token }
+    where: { token: hashToken(token) }  // ← hash before delete
   })
 
   return { message: 'Logged out successfully' }
 }
+
 
 export const googleAuth = async (user: {
   id: string
@@ -192,9 +185,10 @@ export const googleAuth = async (user: {
 
   const refreshToken = signRefreshToken({ id: user.id })
 
+ 
   await prisma.refreshToken.create({
     data: {
-      token: refreshToken,
+      token: hashToken(refreshToken),  
       userId: user.id,
       expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000)
     }

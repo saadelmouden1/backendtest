@@ -3,23 +3,45 @@ import { asyncHandler } from '../utils/asyncHandler'
 import * as authService from '../services/auth.service'
 import { env } from '../config/env'
 
+
+//cookie options
+const accessTokenOptions = {
+  httpOnly : true,
+  secure: env.NODE_ENV === 'production',
+  sameSite: 'lax' as const,
+  maxAge: 15 * 60 * 1000  
+}
+
+const refreshTokenOptions = {
+  httpOnly : true,
+  secure: env.NODE_ENV === 'production',
+  sameSite: 'lax' as const,
+  maxAge: 30 * 24 * 60 * 60 * 1000
+}
+
 export const register = asyncHandler(async (req: Request, res: Response) => {
   const result = await authService.register(req.body)
+
+  res.cookie('accessToken', result.accessToken, accessTokenOptions)
+  res.cookie('refreshToken', result.refreshToken, refreshTokenOptions)
 
   res.status(201).json({
     success: true,
     message: 'Account created successfully',
-    data: result
+    data: { user : result.user}
   })
 })
 
 export const login = asyncHandler(async (req: Request, res: Response) => {
   const result = await authService.login(req.body)
 
+  res.cookie('accessToken', result.accessToken, accessTokenOptions)
+  res.cookie('refreshToken', result.refreshToken, refreshTokenOptions)
+
   res.status(200).json({
     success: true,
     message: 'Logged in successfully',
-    data: result
+    data: { user : result.user}
   })
 })
 
@@ -34,25 +56,30 @@ export const getMe = asyncHandler(async (req: Request, res: Response) => {
 })
 
 export const refresh = asyncHandler(async (req: Request, res: Response) => {
-  const { refreshToken } = req.body
+  const token = req.cookies?.refreshToken
 
-  const result = await authService.refresh(refreshToken)
+  const result = await authService.refresh(token)
+
+  res.cookie('accessToken', result.accessToken, accessTokenOptions)
 
   res.status(200).json({
     success: true,
     message: 'Token refreshed successfully',
-    data: result
+    data: {}
   })
 })
 
 export const logout = asyncHandler(async (req: Request, res: Response) => {
-  const { refreshToken } = req.body
+  const token = req.cookies?.refreshToken
 
-  const result = await authService.logout(refreshToken)
+  await authService.logout(token)
+
+  res.clearCookie('accessToken')
+  res.clearCookie('refreshToken')
 
   res.status(200).json({
-    success: true,
-    message: result.message,
+     success: true,
+    message: 'Logged out successfully',
     data: null
   })
 })
@@ -61,29 +88,15 @@ export const googleCallback = asyncHandler(async (req: Request, res: Response) =
   const user = req.user as any
 
   if (!user) {
-    res.status(401).json({
-      success: false,
-      message: 'Google authentication failed'
-    })
+    res.redirect(`${env.FRONTEND_URL}/login?error=google_auth_failed`)
     return
   }
 
   const result = await authService.googleAuth(user)
 
-  // return JSON for now — frontend will handle redirect later
-  res.status(200).json({
-    success: true,
-    message: 'Google login successful',
-    data: {
-      user: result.user,
-      accessToken: result.accessToken,
-      refreshToken: result.refreshToken
-    }
-  })
+  res.cookie('accessToken', result.accessToken, accessTokenOptions)
+  res.cookie('refreshToken', result.refreshToken, refreshTokenOptions)
 
-//   res.redirect(
-//   `${env.FRONTEND_URL}/auth/callback` +
-//   `?accessToken=${result.accessToken}` +
-//   `&refreshToken=${result.refreshToken}`
-// )
+  // no tokens in URL anymore — they are in cookies
+  res.redirect(`${env.FRONTEND_URL}/auth/callback`)
 })

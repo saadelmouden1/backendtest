@@ -3,9 +3,9 @@ POST http://localhost:3000/api/auth/register
 Content-Type: application/json
 
 {
-  "firstName": "walid",
+  "firstName": "Zaid",
   "lastName": "Doe",
-  "email": "walid@example.com",
+  "email": "zaid3@example.com",
   "password": "password123"
 }
 
@@ -14,28 +14,15 @@ POST http://localhost:3000/api/auth/login
 Content-Type: application/json
 
 {
-  "email": "walid@example.com",
+  "email": "zaid3@example.com",
   "password": "password123"
 }
 
-### Get Me
+### Get Me — cookie sent automatically by REST client
 GET http://localhost:3000/api/auth/me
-Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6Ijc1YmExMDFlLWYwYTUtNDhiNi04NWIwLWNlYjNkNWU2MjVmMiIsImVtYWlsIjoid2FsaWRAZXhhbXBsZS5jb20iLCJ0eXBlIjoiQ0xJRU5UIiwiaWF0IjoxNzc2ODUzMjg3LCJleHAiOjE3NzY4NTQxODd9.jhuOluj5vyJTY-PV-AocqWzLmPky1f3ueJQbf3nWgD8
 
 ### Refresh
 POST http://localhost:3000/api/auth/refresh
-Content-Type: application/json
-
-{
-  "refreshToken": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjViMDYyMzY4LWQ0M2UtNGQ4YS1hNjY2LWIyNjgyN2M2ODk2YyIsImlhdCI6MTc3NjU1MjUxNCwiZXhwIjoxNzc5MTQ0NTE0fQ.X1Mx2TwJpHdMrs4p_TrPWViDo4OkJUab8PDuOcY2yck"
-}
 
 ### Logout
 POST http://localhost:3000/api/auth/logout
-Content-Type: application/json
-
-{
-  "refreshToken": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6Ijc1YmExMDFlLWYwYTUtNDhiNi04NWIwLWNlYjNkNWU2MjVmMiIsImlhdCI6MTc3Njg1MzI4NywiZXhwIjoxNzc5NDQ1Mjg3fQ.oOSwv3YMJMtmrag3LzYkPv5M8HwKD0FICFPCqBe_WZs"
-
-
-}
